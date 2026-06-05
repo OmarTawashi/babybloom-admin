@@ -17,3 +17,6 @@ export const banUser = (id) =>
 
 export const grantPremium = (id, plan = 'premium') =>
   client.post(`/admin/users/${id}/grant-premium`, { plan })
+
+export const getUserCircles = (id) =>
+  client.get(`/admin/users/${id}/circles`)

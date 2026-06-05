@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Mail, Ban, Trash2, Calendar, Clock, Baby, Activity, Shield, Crown } from 'lucide-react'
-import { getUser, banUser, deleteUser, grantPremium, updateUser } from '../api/users'
+import { ArrowLeft, Mail, Ban, Trash2, Calendar, Clock, Baby, Activity, Shield, Crown, Users } from 'lucide-react'
+import { getUser, getUserCircles, banUser, deleteUser, grantPremium, updateUser } from '../api/users'
 import ConfirmDialog from '../components/ConfirmDialog'
 import LoadingSpinner from '../components/LoadingSpinner'
 import { useToast } from '../components/Toast'
@@ -11,6 +11,12 @@ const planColors = {
   plus: 'bg-coral/10 text-coral',
   premium: 'bg-coral/10 text-coral',
   family: 'bg-plum/10 text-plum',
+}
+
+const roleBadgeColors = {
+  owner: 'bg-coral/10 text-coral',
+  caregiver: 'bg-sky/10 text-sky',
+  viewer: 'bg-mint/10 text-mint',
 }
 
 const statusStyles = {
@@ -25,6 +31,7 @@ export default function UserDetail() {
   const navigate = useNavigate()
   const toast = useToast()
   const [data, setData] = useState(null)
+  const [circles, setCircles] = useState([])
   const [loading, setLoading] = useState(true)
   const [confirm, setConfirm] = useState(null)
   const [editingRole, setEditingRole] = useState(false)
@@ -43,8 +50,18 @@ export default function UserDetail() {
     }
   }
 
+  const loadCircles = async () => {
+    try {
+      const res = await getUserCircles(id)
+      setCircles(res.data.circles || [])
+    } catch {
+      // Non-blocking — circles are supplementary data
+    }
+  }
+
   useEffect(() => {
     loadUser()
+    loadCircles()
   }, [id])
 
   if (loading) return <LoadingSpinner />
@@ -271,7 +288,7 @@ export default function UserDetail() {
                     Grant Premium
                   </button>
                   <button onClick={() => handleGrantPremium('family')} disabled={actionLoading} className="w-full py-2.5 bg-plum text-white rounded-xl text-sm font-semibold hover:bg-plum-light transition-colors disabled:opacity-50 shadow-sm">
-                    Grant Family
+                    Grant Family Plan
                   </button>
                 </div>
               )}
@@ -279,6 +296,41 @@ export default function UserDetail() {
                 <p className="text-xs text-text-secondary mt-3">
                   Expires: {new Date(user.subscription.ends_at).toLocaleDateString()}
                 </p>
+              )}
+            </div>
+          </div>
+
+          {/* Family Card */}
+          <div className="bg-surface rounded-2xl border border-border overflow-hidden animate-fade-in-up">
+            <div className="px-6 py-4 border-b border-border bg-cream/30">
+              <h3 className="font-semibold flex items-center gap-2"><Users size={16} className="text-sky" /> Family</h3>
+            </div>
+            <div className="p-4">
+              {circles.length === 0 ? (
+                <p className="text-sm text-text-secondary py-2">Not in a family</p>
+              ) : (
+                <div className="space-y-4">
+                  {circles.map((entry, i) => (
+                    <div key={i}>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-semibold text-sm">{entry.circle.name}</span>
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${roleBadgeColors[entry.membership.role] || 'bg-cream text-ink/60'}`}>
+                          {entry.membership.role}
+                        </span>
+                      </div>
+                      <div className="space-y-1.5">
+                        {entry.members.map((m) => (
+                          <div key={m.id} className="flex items-center justify-between py-1.5 px-2 bg-cream/50 rounded-lg">
+                            <span className="text-sm">{m.name || m.email || 'Member'}</span>
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${roleBadgeColors[m.role] || 'bg-cream text-ink/60'}`}>
+                              {m.role}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           </div>
