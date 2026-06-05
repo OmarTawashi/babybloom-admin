@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Settings as SettingsIcon, Bell, Globe, Shield, Database, Mail, Save, Eye } from 'lucide-react'
 import { getSettings, updateSettings } from '../api/settings'
 import LoadingSpinner from '../components/LoadingSpinner'
@@ -18,28 +18,25 @@ export default function Settings() {
     default_locale: 'en',
     timezone: 'UTC',
   })
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [_loaded, setLoaded] = useState(false)
 
-  const loadSettings = async () => {
-    setLoading(true)
-    try {
-      const res = await getSettings()
-      if (res.data?.settings) {
-        setSettings((prev) => ({ ...prev, ...res.data.settings }))
+  useEffect(() => {
+    let cancelled = false
+    const loadSettings = async () => {
+      try {
+        const res = await getSettings()
+        if (!cancelled && res.data?.settings) {
+          setSettings((prev) => ({ ...prev, ...res.data.settings }))
+        }
+      } catch {
+        // Use defaults
       }
-    } catch {
-      // Use defaults
+      if (!cancelled) setLoading(false)
     }
-    setLoaded(true)
-    setLoading(false)
-  }
-
-  if (!_loaded) {
     loadSettings()
-    return <LoadingSpinner />
-  }
+    return () => { cancelled = true }
+  }, [])
 
   if (loading) return <LoadingSpinner />
 
