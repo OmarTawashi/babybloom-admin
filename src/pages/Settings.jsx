@@ -1,194 +1,238 @@
-import { Save, Globe, Bell, Shield } from 'lucide-react'
-import { useEffect, useState } from 'react'
-import { getNotifications, createNotification } from '../api/notifications'
+import { useState } from 'react'
+import { Settings as SettingsIcon, Bell, Globe, Shield, Database, Mail, Save, Eye } from 'lucide-react'
 import { getSettings, updateSettings } from '../api/settings'
+import LoadingSpinner from '../components/LoadingSpinner'
+import { useToast } from '../components/Toast'
 
 export default function Settings() {
-  const [notifications, setNotifications] = useState([])
-  const [form, setForm] = useState({ title: '', body: '' })
-  const [sending, setSending] = useState(false)
-
+  const toast = useToast()
   const [settings, setSettings] = useState({
-    app_name: '',
-    support_email: '',
-    session_timeout: '',
+    app_name: 'BabyGlow',
+    support_email: 'support@babyglow.app',
+    max_babies_per_user: 5,
+    max_photos_per_log: 10,
+    enable_notifications: true,
+    enable_email_verification: true,
+    enable_content_moderation: false,
+    maintenance_mode: false,
+    default_locale: 'en',
+    timezone: 'UTC',
   })
-  const [savingSettings, setSavingSettings] = useState(false)
-  const [savedSettings, setSavedSettings] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [_loaded, setLoaded] = useState(false)
 
-  useEffect(() => {
-    getNotifications().then((res) => setNotifications(res.data.notifications?.data || [])).catch(() => {})
-    getSettings()
-      .then((res) => {
-        const s = res.data.settings || {}
-        setSettings({
-          app_name: s.app_name ?? '',
-          support_email: s.support_email ?? '',
-          session_timeout: s.session_timeout ?? '',
-        })
-      })
-      .catch(() => {})
-  }, [])
-
-  const handleSaveSettings = async (e) => {
-    e.preventDefault()
-    setSavingSettings(true)
-    setSavedSettings(false)
+  const loadSettings = async () => {
+    setLoading(true)
     try {
-      const res = await updateSettings({
-        app_name: settings.app_name,
-        support_email: settings.support_email,
-        session_timeout: Number(settings.session_timeout) || 30,
-      })
-      const s = res.data.settings || {}
-      setSettings({
-        app_name: s.app_name ?? '',
-        support_email: s.support_email ?? '',
-        session_timeout: s.session_timeout ?? '',
-      })
-      setSavedSettings(true)
-      setTimeout(() => setSavedSettings(false), 2500)
+      const res = await getSettings()
+      if (res.data?.settings) {
+        setSettings((prev) => ({ ...prev, ...res.data.settings }))
+      }
     } catch {
-      // ignore
-    } finally {
-      setSavingSettings(false)
+      // Use defaults
     }
+    setLoaded(true)
+    setLoading(false)
   }
 
-  const handleSendNotification = async (e) => {
-    e.preventDefault()
-    setSending(true)
+  if (!_loaded) {
+    loadSettings()
+    return <LoadingSpinner />
+  }
+
+  if (loading) return <LoadingSpinner />
+
+  const handleSave = async () => {
+    setSaving(true)
     try {
-      await createNotification(form)
-      setForm({ title: '', body: '' })
-      const res = await getNotifications()
-      setNotifications(res.data.notifications?.data || [])
+      await updateSettings(settings)
+      toast({ type: 'success', title: 'Settings saved' })
     } catch {
-      // ignore
-    } finally {
-      setSending(false)
+      toast({ type: 'error', title: 'Failed to save settings' })
     }
+    setSaving(false)
+  }
+
+  const updateSetting = (key, value) => {
+    setSettings((prev) => ({ ...prev, [key]: value }))
   }
 
   return (
-    <div className="space-y-6 max-w-3xl">
-      <div>
-        <h1 className="text-2xl font-bold">Settings</h1>
-        <p className="text-text-secondary text-sm mt-1">App configuration and notifications</p>
+    <div className="space-y-6 max-w-4xl">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Settings</h1>
+          <p className="text-text-secondary text-sm mt-1">Manage your app configuration</p>
+        </div>
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="flex items-center gap-2 px-5 py-2.5 bg-coral text-white rounded-xl text-sm font-semibold hover:bg-coral-dark transition-colors disabled:opacity-50 shadow-sm"
+        >
+          <Save size={16} />
+          {saving ? 'Saving...' : 'Save Changes'}
+        </button>
       </div>
 
-      <form onSubmit={handleSaveSettings} className="bg-surface rounded-2xl p-6 border border-border">
-        <div className="flex items-center gap-2 mb-5">
-          <Globe size={18} className="text-text-secondary" />
-          <h3 className="font-semibold">General</h3>
-        </div>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1.5">App Name</label>
-            <input
-              type="text"
-              value={settings.app_name}
-              onChange={(e) => setSettings({ ...settings, app_name: e.target.value })}
-              className="w-full px-4 py-2.5 bg-cream rounded-xl text-sm border-0 outline-none focus:ring-2 focus:ring-coral/20"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1.5">Support Email</label>
-            <input
-              type="email"
-              value={settings.support_email}
-              onChange={(e) => setSettings({ ...settings, support_email: e.target.value })}
-              className="w-full px-4 py-2.5 bg-cream rounded-xl text-sm border-0 outline-none focus:ring-2 focus:ring-coral/20"
-            />
-          </div>
-          <div className="flex items-center gap-3 pt-1">
-            <button
-              type="submit"
-              disabled={savingSettings}
-              className="inline-flex items-center gap-2 px-6 py-2.5 bg-coral text-white rounded-xl text-sm font-semibold hover:bg-coral-dark disabled:opacity-50"
-            >
-              <Save size={16} />
-              {savingSettings ? 'Saving...' : 'Save Settings'}
-            </button>
-            {savedSettings && <span className="text-sm text-mint font-medium">Saved!</span>}
+      {/* General */}
+      <div className="bg-surface rounded-2xl border border-border overflow-hidden animate-fade-in-up">
+        <div className="px-6 py-4 border-b border-border bg-cream/30">
+          <div className="flex items-center gap-2">
+            <Globe size={16} className="text-coral" />
+            <h3 className="font-semibold">General</h3>
           </div>
         </div>
-      </form>
-
-      <div className="bg-surface rounded-2xl p-6 border border-border">
-        <div className="flex items-center gap-2 mb-5">
-          <Bell size={18} className="text-text-secondary" />
-          <h3 className="font-semibold">Send Notification</h3>
-        </div>
-        <form onSubmit={handleSendNotification} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1.5">Title</label>
-            <input
-              type="text"
-              value={form.title}
-              onChange={(e) => setForm({ ...form, title: e.target.value })}
-              className="w-full px-4 py-2.5 bg-cream rounded-xl text-sm border-0 outline-none focus:ring-2 focus:ring-coral/20"
-              placeholder="Notification title"
-              required
-            />
+        <div className="p-6 space-y-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+              <label className="block text-sm font-medium mb-1.5">App Name</label>
+              <input
+                type="text"
+                value={settings.app_name}
+                onChange={(e) => updateSetting('app_name', e.target.value)}
+                className="w-full px-4 py-2.5 bg-cream rounded-xl text-sm border-0 outline-none focus:ring-2 focus:ring-coral/20"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1.5">Support Email</label>
+              <input
+                type="email"
+                value={settings.support_email}
+                onChange={(e) => updateSetting('support_email', e.target.value)}
+                className="w-full px-4 py-2.5 bg-cream rounded-xl text-sm border-0 outline-none focus:ring-2 focus:ring-coral/20"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1.5">Default Language</label>
+              <select
+                value={settings.default_locale}
+                onChange={(e) => updateSetting('default_locale', e.target.value)}
+                className="w-full px-4 py-2.5 bg-cream rounded-xl text-sm border-0 outline-none cursor-pointer"
+              >
+                <option value="en">English</option>
+                <option value="ar">Arabic</option>
+                <option value="fr">French</option>
+                <option value="es">Spanish</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1.5">Timezone</label>
+              <select
+                value={settings.timezone}
+                onChange={(e) => updateSetting('timezone', e.target.value)}
+                className="w-full px-4 py-2.5 bg-cream rounded-xl text-sm border-0 outline-none cursor-pointer"
+              >
+                <option value="UTC">UTC</option>
+                <option value="Africa/Cairo">Africa/Cairo</option>
+                <option value="America/New_York">America/New_York</option>
+                <option value="Europe/London">Europe/London</option>
+              </select>
+            </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium mb-1.5">Message</label>
-            <textarea
-              value={form.body}
-              onChange={(e) => setForm({ ...form, body: e.target.value })}
-              rows={3}
-              className="w-full px-4 py-2.5 bg-cream rounded-xl text-sm border-0 outline-none focus:ring-2 focus:ring-coral/20 resize-y"
-              placeholder="Notification message"
-              required
-            />
-          </div>
-          <button type="submit" disabled={sending} className="px-6 py-2.5 bg-coral text-white rounded-xl text-sm font-semibold hover:bg-coral-dark disabled:opacity-50">
-            {sending ? 'Sending...' : 'Send to All Users'}
-          </button>
-        </form>
-      </div>
-
-      <div className="bg-surface rounded-2xl p-6 border border-border">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold">Sent Notifications</h3>
-          <span className="text-xs text-text-secondary">{notifications.length} sent</span>
-        </div>
-        {notifications.length > 0 ? (
-          <div className="space-y-3">
-            {notifications.map((n, i) => (
-              <div key={i} className="p-4 bg-cream/50 rounded-xl">
-                <div className="font-medium text-sm">{n.title}</div>
-                <p className="text-xs text-text-secondary mt-1">{n.body}</p>
-                <p className="text-xs text-text-secondary mt-2">{new Date(n.sent_at || n.created_at).toLocaleString()}</p>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-text-secondary text-center py-6">No notifications sent yet</p>
-        )}
-      </div>
-
-      <div className="bg-surface rounded-2xl p-6 border border-border">
-        <div className="flex items-center gap-2 mb-5">
-          <Shield size={18} className="text-text-secondary" />
-          <h3 className="font-semibold">Security</h3>
-        </div>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1.5">Session Timeout (minutes)</label>
-            <input
-              type="number"
-              min={1}
-              max={1440}
-              value={settings.session_timeout}
-              onChange={(e) => setSettings({ ...settings, session_timeout: e.target.value })}
-              className="w-32 px-4 py-2.5 bg-cream rounded-xl text-sm border-0 outline-none focus:ring-2 focus:ring-coral/20"
-            />
-          </div>
-          <p className="text-xs text-text-secondary">Saved with the General settings above.</p>
         </div>
       </div>
+
+      {/* Limits */}
+      <div className="bg-surface rounded-2xl border border-border overflow-hidden animate-fade-in-up">
+        <div className="px-6 py-4 border-b border-border bg-cream/30">
+          <div className="flex items-center gap-2">
+            <Database size={16} className="text-mint" />
+            <h3 className="font-semibold">Limits</h3>
+          </div>
+        </div>
+        <div className="p-6 space-y-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+              <label className="block text-sm font-medium mb-1.5">Max Babies per User</label>
+              <input
+                type="number"
+                min="1"
+                max="20"
+                value={settings.max_babies_per_user}
+                onChange={(e) => updateSetting('max_babies_per_user', parseInt(e.target.value) || 1)}
+                className="w-full px-4 py-2.5 bg-cream rounded-xl text-sm border-0 outline-none focus:ring-2 focus:ring-coral/20"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1.5">Max Photos per Log</label>
+              <input
+                type="number"
+                min="1"
+                max="50"
+                value={settings.max_photos_per_log}
+                onChange={(e) => updateSetting('max_photos_per_log', parseInt(e.target.value) || 1)}
+                className="w-full px-4 py-2.5 bg-cream rounded-xl text-sm border-0 outline-none focus:ring-2 focus:ring-coral/20"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Features */}
+      <div className="bg-surface rounded-2xl border border-border overflow-hidden animate-fade-in-up">
+        <div className="px-6 py-4 border-b border-border bg-cream/30">
+          <div className="flex items-center gap-2">
+            <Shield size={16} className="text-plum" />
+            <h3 className="font-semibold">Features & Security</h3>
+          </div>
+        </div>
+        <div className="divide-y divide-border">
+          <ToggleRow
+            icon={<Bell size={16} className="text-coral" />}
+            label="Push Notifications"
+            description="Enable push notifications for users"
+            value={settings.enable_notifications}
+            onChange={(v) => updateSetting('enable_notifications', v)}
+          />
+          <ToggleRow
+            icon={<Mail size={16} className="text-sky" />}
+            label="Email Verification"
+            description="Require email verification on sign up"
+            value={settings.enable_email_verification}
+            onChange={(v) => updateSetting('enable_email_verification', v)}
+          />
+          <ToggleRow
+            icon={<Eye size={16} className="text-mint" />}
+            label="Content Moderation"
+            description="Auto-moderate user-generated content"
+            value={settings.enable_content_moderation}
+            onChange={(v) => updateSetting('enable_content_moderation', v)}
+          />
+          <ToggleRow
+            icon={<SettingsIcon size={16} className="text-red-400" />}
+            label="Maintenance Mode"
+            description="Temporarily disable the app for users"
+            value={settings.maintenance_mode}
+            onChange={(v) => updateSetting('maintenance_mode', v)}
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ToggleRow({ icon, label, description, value, onChange }) {
+  return (
+    <div className="flex items-center justify-between px-6 py-4">
+      <div className="flex items-center gap-3">
+        <div className="w-9 h-9 bg-cream rounded-xl flex items-center justify-center shrink-0">{icon}</div>
+        <div>
+          <div className="text-sm font-medium">{label}</div>
+          <div className="text-xs text-text-secondary">{description}</div>
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={() => onChange(!value)}
+        className={`relative w-11 h-6 rounded-full transition-colors duration-200 shrink-0 ${
+          value ? 'bg-coral' : 'bg-gray-200 dark:bg-gray-700'
+        }`}
+      >
+        <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200 ${
+          value ? 'translate-x-5' : 'translate-x-0'
+        }`} />
+      </button>
     </div>
   )
 }

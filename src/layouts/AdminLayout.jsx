@@ -1,34 +1,62 @@
 import { useState, useEffect } from 'react'
-import { Outlet, NavLink } from 'react-router-dom'
+import { Outlet, NavLink, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, Users, CreditCard, FileText, BarChart3,
-  Settings, LogOut, Baby, Bell, Search, ChevronDown, BookOpen, ScrollText,
-  Menu, X, Moon, Sun
+  Settings, LogOut, Baby, Bell, Search, ChevronDown, ScrollText,
+  Menu, X, Moon, Sun, ChevronRight
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 
-const navItems = [
-  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/users', icon: Users, label: 'Users' },
-  { to: '/babies', icon: Baby, label: 'Babies' },
-  { to: '/logs', icon: ScrollText, label: 'Logs' },
-  { to: '/subscriptions', icon: CreditCard, label: 'Subscriptions' },
-  { to: '/content', icon: FileText, label: 'Content' },
-  { to: '/insights', icon: BarChart3, label: 'Insights' },
-  { to: '/settings', icon: Settings, label: 'Settings' },
+const navSections = [
+  {
+    label: 'Overview',
+    items: [
+      { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+      { to: '/insights', icon: BarChart3, label: 'Insights' },
+    ]
+  },
+  {
+    label: 'Management',
+    items: [
+      { to: '/users', icon: Users, label: 'Users' },
+      { to: '/babies', icon: Baby, label: 'Babies' },
+      { to: '/logs', icon: ScrollText, label: 'Logs' },
+      { to: '/subscriptions', icon: CreditCard, label: 'Subscriptions' },
+    ]
+  },
+  {
+    label: 'Content & Config',
+    items: [
+      { to: '/content', icon: FileText, label: 'Content' },
+      { to: '/settings', icon: Settings, label: 'Settings' },
+    ]
+  },
 ]
 
 export default function AdminLayout() {
   const { user, logout } = useAuth()
+  const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    return localStorage.getItem('babyglow-sidebar-collapsed') === 'true'
+  })
   const [darkMode, setDarkMode] = useState(() => {
     return localStorage.getItem('babyglow-dark') === 'true'
   })
+  const [profileOpen, setProfileOpen] = useState(false)
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode)
     localStorage.setItem('babyglow-dark', darkMode)
   }, [darkMode])
+
+  useEffect(() => {
+    setSidebarOpen(false)
+  }, [location.pathname])
+
+  useEffect(() => {
+    localStorage.setItem('babyglow-sidebar-collapsed', sidebarCollapsed)
+  }, [sidebarCollapsed])
 
   const handleLogout = async () => {
     await logout()
@@ -36,66 +64,111 @@ export default function AdminLayout() {
 
   return (
     <div className="flex h-screen overflow-hidden">
+      {/* Mobile overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+          className="fixed inset-0 bg-black/50 z-30 lg:hidden animate-fade-in"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
-      <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-sidebar text-white flex flex-col shrink-0 transition-transform duration-200 lg:static lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="p-6 flex items-center gap-3 border-b border-white/5">
-          <div className="w-10 h-10 bg-coral rounded-xl flex items-center justify-center">
+      {/* Sidebar */}
+      <aside className={`fixed inset-y-0 left-0 z-40 bg-sidebar text-white flex flex-col shrink-0 transition-all duration-300 ease-in-out lg:static lg:translate-x-0 ${
+        sidebarOpen ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0'
+      } ${sidebarCollapsed ? 'lg:w-20' : 'lg:w-64'}`}>
+        {/* Logo */}
+        <div className={`p-4 flex items-center border-b border-white/5 ${sidebarCollapsed ? 'lg:justify-center lg:px-2' : 'gap-3'}`}>
+          <div className="w-10 h-10 bg-gradient-to-br from-coral to-coral-dark rounded-xl flex items-center justify-center shadow-lg shadow-coral/20 shrink-0">
             <Baby size={22} />
           </div>
-          <div>
-            <div className="font-bold text-lg leading-tight">BabyGlow</div>
-            <div className="text-xs text-white/40">Admin Panel</div>
-          </div>
+          {!sidebarCollapsed && (
+            <div className="animate-fade-in">
+              <div className="font-bold text-lg leading-tight">BabyGlow</div>
+              <div className="text-[10px] text-white/30 uppercase tracking-widest font-medium">Admin Panel</div>
+            </div>
+          )}
           <button
-            className="ml-auto lg:hidden p-1 rounded-lg hover:bg-white/10"
+            className="ml-auto p-1 rounded-lg hover:bg-white/10 lg:hidden"
             onClick={() => setSidebarOpen(false)}
           >
             <X size={18} />
           </button>
         </div>
 
-        <nav className="flex-1 p-4 space-y-1 overflow-auto">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.to === '/dashboard' || item.to === '/users'}
-              onClick={() => setSidebarOpen(false)}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                  isActive
-                    ? 'bg-sidebar-active text-coral'
-                    : 'text-white/50 hover:bg-sidebar-hover hover:text-white/80'
-                }`
-              }
-            >
-              <item.icon size={18} />
-              {item.label}
-            </NavLink>
+        {/* Navigation */}
+        <nav className="flex-1 p-3 overflow-auto">
+          {navSections.map((section) => (
+            <div key={section.label} className="mb-4">
+              {!sidebarCollapsed && (
+                <div className="px-3 mb-2 text-[10px] uppercase tracking-widest text-white/20 font-semibold">
+                  {section.label}
+                </div>
+              )}
+              <div className="space-y-0.5">
+                {section.items.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.to === '/dashboard' || item.to === '/users'}
+                    title={sidebarCollapsed ? item.label : undefined}
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 rounded-xl text-sm font-medium transition-all duration-200 ${
+                        sidebarCollapsed ? 'px-0 py-2.5 justify-center lg:mx-auto lg:w-12' : 'px-3 py-2.5'
+                      } ${
+                        isActive
+                          ? 'bg-sidebar-active text-coral shadow-sm'
+                          : 'text-white/40 hover:bg-sidebar-hover hover:text-white/80'
+                      }`
+                    }
+                  >
+                    <item.icon size={18} className="shrink-0" />
+                    {!sidebarCollapsed && <span>{item.label}</span>}
+                  </NavLink>
+                ))}
+              </div>
+            </div>
           ))}
         </nav>
 
-        <div className="p-4 border-t border-white/5">
-          <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-sidebar-hover">
-            <div className="w-8 h-8 bg-coral/20 rounded-full flex items-center justify-center text-coral text-sm font-bold">
+        {/* Collapse toggle - desktop only */}
+        <div className="hidden lg:block px-3 pb-2">
+          <button
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-white/30 hover:bg-sidebar-hover hover:text-white/60 transition-colors text-xs"
+          >
+            <ChevronRight size={14} className={`transition-transform duration-300 ${sidebarCollapsed ? '' : 'rotate-180'}`} />
+            {!sidebarCollapsed && <span>Collapse</span>}
+          </button>
+        </div>
+
+        {/* User profile */}
+        <div className="p-3 border-t border-white/5">
+          <div className={`flex items-center gap-3 rounded-xl bg-sidebar-hover p-3 ${sidebarCollapsed ? 'lg:justify-center lg:px-2' : ''}`}>
+            <div className="w-9 h-9 bg-gradient-to-br from-coral to-coral-dark rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0 shadow-sm">
               {user?.name?.charAt(0)?.toUpperCase() || 'A'}
             </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium truncate">{user?.name || 'Admin'}</div>
-              <div className="text-xs text-white/30">{user?.role || 'admin'}</div>
-            </div>
-            <LogOut size={16} className="text-white/30 hover:text-coral cursor-pointer transition-colors" onClick={handleLogout} />
+            {!sidebarCollapsed && (
+              <div className="flex-1 min-w-0 animate-fade-in">
+                <div className="text-sm font-medium truncate">{user?.name || 'Admin'}</div>
+                <div className="text-[10px] text-white/30 uppercase tracking-wider">{user?.role || 'admin'}</div>
+              </div>
+            )}
+            {!sidebarCollapsed && (
+              <button
+                onClick={handleLogout}
+                className="p-1.5 rounded-lg hover:bg-white/10 transition-colors group"
+                title="Logout"
+              >
+                <LogOut size={15} className="text-white/30 group-hover:text-coral transition-colors" />
+              </button>
+            )}
           </div>
         </div>
       </aside>
 
+      {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Header */}
         <header className="h-16 bg-surface border-b border-border flex items-center justify-between px-4 md:px-6 shrink-0">
           <div className="flex items-center gap-3">
             <button
@@ -109,14 +182,15 @@ export default function AdminLayout() {
               <input
                 type="text"
                 placeholder="Search users, logs, reports..."
-                className="pl-9 pr-4 py-2 bg-cream rounded-xl text-sm border-0 outline-none focus:ring-2 focus:ring-coral/20 w-56 lg:w-72"
+                className="pl-9 pr-4 py-2 bg-cream rounded-xl text-sm border-0 outline-none focus:ring-2 focus:ring-coral/20 w-56 lg:w-72 transition-all placeholder:text-text-secondary/50"
               />
+              <kbd className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-text-secondary bg-surface px-1.5 py-0.5 rounded border border-border font-mono hidden lg:block">⌘K</kbd>
             </div>
           </div>
-          <div className="flex items-center gap-2 md:gap-4">
+          <div className="flex items-center gap-1 md:gap-2">
             <button
               onClick={() => setDarkMode(!darkMode)}
-              className="p-2 rounded-xl hover:bg-cream transition-colors"
+              className="p-2.5 rounded-xl hover:bg-cream transition-all duration-200 hover:scale-105"
               title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
             >
               {darkMode ? (
@@ -125,21 +199,52 @@ export default function AdminLayout() {
                 <Moon size={18} className="text-text-secondary" />
               )}
             </button>
-            <button className="relative p-2 rounded-xl hover:bg-cream transition-colors">
+            <button className="relative p-2.5 rounded-xl hover:bg-cream transition-all duration-200 hover:scale-105">
               <Bell size={18} className="text-text-secondary" />
+              <span className="absolute top-2 right-2 w-2 h-2 bg-coral rounded-full" />
             </button>
-            <div className="h-8 w-px bg-border hidden md:block" />
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-coral/10 rounded-full flex items-center justify-center text-coral text-sm font-bold">
-                {user?.name?.charAt(0)?.toUpperCase() || 'A'}
-              </div>
-              <ChevronDown size={14} className="text-text-secondary hidden md:block" />
+            <div className="h-6 w-px bg-border hidden md:block mx-1" />
+            <div className="relative">
+              <button
+                onClick={() => setProfileOpen(!profileOpen)}
+                className="flex items-center gap-2 py-1 px-2 rounded-xl hover:bg-cream transition-colors"
+              >
+                <div className="w-8 h-8 bg-gradient-to-br from-coral to-coral-dark rounded-full flex items-center justify-center text-white text-sm font-bold shadow-sm">
+                  {user?.name?.charAt(0)?.toUpperCase() || 'A'}
+                </div>
+                <div className="hidden md:block text-left">
+                  <div className="text-sm font-medium leading-tight">{user?.name || 'Admin'}</div>
+                </div>
+                <ChevronDown size={14} className={`text-text-secondary hidden md:block transition-transform ${profileOpen ? 'rotate-180' : ''}`} />
+              </button>
+              
+              {profileOpen && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setProfileOpen(false)} />
+                  <div className="absolute right-0 top-full mt-2 w-56 bg-surface rounded-xl border border-border shadow-xl z-20 py-2 animate-fade-in-down">
+                    <div className="px-4 py-2 border-b border-border">
+                      <div className="text-sm font-medium">{user?.name || 'Admin'}</div>
+                      <div className="text-xs text-text-secondary">{user?.email}</div>
+                    </div>
+                    <button
+                      onClick={handleLogout}
+                      className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-500 hover:bg-cream transition-colors"
+                    >
+                      <LogOut size={16} />
+                      Sign Out
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </header>
 
+        {/* Page content */}
         <main className="flex-1 overflow-auto p-4 md:p-6">
-          <Outlet />
+          <div className="page-enter">
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>

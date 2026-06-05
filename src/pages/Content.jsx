@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { FileText, Edit3, Trash2, Plus, Eye, Clock, X } from 'lucide-react'
+import { Edit3, Trash2, Plus, X } from 'lucide-react'
 import { getArticles, createArticle, updateArticle, deleteArticle } from '../api/articles'
 import ConfirmDialog from '../components/ConfirmDialog'
 import LoadingSpinner from '../components/LoadingSpinner'
