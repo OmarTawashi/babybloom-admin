@@ -1,34 +1,50 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Search, ScrollText, RefreshCw } from 'lucide-react'
-import { getLogs } from '../api/logs'
+import { Search, ScrollText, RefreshCw, X, Trash2 } from 'lucide-react'
+import { getLogs, getLog, deleteLog } from '../api/logs'
 import Pagination from '../components/Pagination'
 import EmptyState from '../components/EmptyState'
 import LoadingSpinner from '../components/LoadingSpinner'
+import ConfirmDialog from '../components/ConfirmDialog'
 import { useToast } from '../components/Toast'
 
+// Canonical BabyLog::TYPES from the backend
+const logTypes = [
+  'feed', 'diaper', 'sleep', 'bath', 'medicine', 'growth',
+  'mood', 'note', 'pump', 'tummy_time', 'milestone', 'temperature',
+]
+
 const typeColors = {
-  feeding: 'bg-coral/10 text-coral',
+  feed: 'bg-coral/10 text-coral',
   sleep: 'bg-plum/10 text-plum',
   diaper: 'bg-mint/10 text-emerald-600',
   growth: 'bg-sky/10 text-sky',
   milestone: 'bg-mango/10 text-amber-600',
-  health: 'bg-red-500/10 text-red-400',
-  pumping: 'bg-coral/10 text-coral-dark',
+  mood: 'bg-red-500/10 text-red-400',
+  pump: 'bg-coral/10 text-coral-dark',
   temperature: 'bg-sky/10 text-sky',
-  medication: 'bg-plum/10 text-plum',
+  medicine: 'bg-plum/10 text-plum',
+  bath: 'bg-sky/10 text-sky',
+  note: 'bg-cream text-text-secondary',
+  tummy_time: 'bg-mango/10 text-amber-600',
 }
 
 const typeEmoji = {
-  feeding: '🍼',
+  feed: '🍼',
   sleep: '😴',
   diaper: '🧷',
   growth: '📏',
   milestone: '⭐',
-  health: '❤️',
-  pumping: '🫙',
+  mood: '😊',
+  pump: '🫙',
   temperature: '🌡️',
-  medication: '💊',
+  medicine: '💊',
+  bath: '🛁',
+  note: '📝',
+  tummy_time: '🤸',
 }
+
+const typeLabel = (type) =>
+  (type || '').split('_').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
 
 export default function Logs() {
   const [logs, setLogs] = useState([])
@@ -37,6 +53,9 @@ export default function Logs() {
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
   const [page, setPage] = useState(1)
+  const [detail, setDetail] = useState(null)
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState(null)
   const toast = useToast()
 
   const fetchLogs = useCallback(async () => {
@@ -58,7 +77,31 @@ export default function Logs() {
 
   useEffect(() => { fetchLogs() }, [fetchLogs])
 
-  const logTypes = ['feeding', 'sleep', 'diaper', 'growth', 'milestone', 'health', 'pumping', 'temperature', 'medication']
+  const openDetail = async (log) => {
+    setDetail(log)
+    setDetailLoading(true)
+    try {
+      const res = await getLog(log.id)
+      setDetail(res.data.log || log)
+    } catch {
+      toast({ type: 'error', title: 'Failed to load log detail' })
+    } finally {
+      setDetailLoading(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    const target = deleteTarget
+    setDeleteTarget(null)
+    try {
+      await deleteLog(target.id)
+      setDetail(null)
+      setLogs((prev) => prev.filter((l) => l.id !== target.id))
+      toast({ type: 'success', title: 'Log deleted' })
+    } catch (err) {
+      toast({ type: 'error', title: 'Failed to delete log', message: err.response?.data?.message })
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -90,7 +133,7 @@ export default function Logs() {
         >
           <option value="">All Types</option>
           {logTypes.map((type) => (
-            <option key={type} value={type}>{typeEmoji[type]} {type.charAt(0).toUpperCase() + type.slice(1)}</option>
+            <option key={type} value={type}>{typeEmoji[type]} {typeLabel(type)}</option>
           ))}
         </select>
       </div>
@@ -114,11 +157,15 @@ export default function Logs() {
                   </thead>
                   <tbody>
                     {logs.map((log) => (
-                      <tr key={log.id} className="border-b border-border table-row-hover">
+                      <tr
+                        key={log.id}
+                        onClick={() => openDetail(log)}
+                        className="border-b border-border table-row-hover cursor-pointer"
+                      >
                         <td className="px-6 py-4">
-                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold capitalize ${typeColors[log.type] || 'bg-cream text-text-secondary'}`}>
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${typeColors[log.type] || 'bg-cream text-text-secondary'}`}>
                             <span>{typeEmoji[log.type] || '📋'}</span>
-                            {log.type}
+                            {typeLabel(log.type)}
                           </span>
                         </td>
                         <td className="px-6 py-4">
@@ -128,7 +175,7 @@ export default function Logs() {
                           </div>
                         </td>
                         <td className="px-6 py-4 text-sm text-text-secondary">{log.user?.name || 'Unknown'}</td>
-                        <td className="px-6 py-4 text-sm text-text-secondary max-w-xs truncate">{log.notes || log.data?.notes || '—'}</td>
+                        <td className="px-6 py-4 text-sm text-text-secondary max-w-xs truncate">{log.note || log.data?.notes || '—'}</td>
                         <td className="px-6 py-4 text-sm text-text-secondary whitespace-nowrap">
                           {new Date(log.logged_at || log.created_at).toLocaleString('en', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
                         </td>
@@ -142,6 +189,70 @@ export default function Logs() {
           )}
         </>
       )}
+
+      {detail && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center animate-fade-in">
+          <div className="fixed inset-0 bg-black/50 glass" onClick={() => setDetail(null)} />
+          <div className="relative bg-surface rounded-2xl max-w-lg w-full mx-4 shadow-2xl animate-scale-in overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">{typeEmoji[detail.type] || '📋'}</span>
+                <h3 className="font-semibold text-lg">{typeLabel(detail.type)} log</h3>
+              </div>
+              <button onClick={() => setDetail(null)} className="p-1.5 rounded-lg hover:bg-cream transition-colors">
+                <X size={16} className="text-text-secondary" />
+              </button>
+            </div>
+
+            {detailLoading ? <LoadingSpinner /> : (
+              <div className="px-6 py-4 space-y-3 max-h-[60vh] overflow-auto">
+                <DetailRow label="Baby" value={detail.baby?.name} />
+                <DetailRow label="Logged by" value={detail.user ? `${detail.user.name} (${detail.user.email})` : null} />
+                <DetailRow label="Logged at" value={detail.logged_at ? new Date(detail.logged_at).toLocaleString('en', { dateStyle: 'medium', timeStyle: 'short' }) : null} />
+                <DetailRow label="Duration" value={detail.duration_minutes ? `${detail.duration_minutes} min` : null} />
+                <DetailRow label="Note" value={detail.note} />
+                {detail.data && Object.keys(detail.data).length > 0 && (
+                  <div>
+                    <div className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5">Details</div>
+                    <pre className="bg-cream rounded-xl p-3 text-xs overflow-auto whitespace-pre-wrap break-words">
+                      {JSON.stringify(detail.data, null, 2)}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-border bg-cream/30">
+              <button
+                onClick={() => setDeleteTarget(detail)}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-xl text-red-500 border border-red-500/20 hover:bg-red-500/10 transition-colors"
+              >
+                <Trash2 size={15} />
+                Delete log
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        danger
+        title="Delete this log?"
+        message={<>This permanently removes the {typeLabel(deleteTarget?.type)} entry for <strong>{deleteTarget?.baby?.name || 'this baby'}</strong>. The parent will lose this record.</>}
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
+    </div>
+  )
+}
+
+function DetailRow({ label, value }) {
+  if (!value) return null
+  return (
+    <div className="flex items-start justify-between gap-4">
+      <span className="text-xs font-semibold text-text-secondary uppercase tracking-wider pt-0.5">{label}</span>
+      <span className="text-sm text-right">{value}</span>
     </div>
   )
 }
