@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
-import { Outlet, NavLink, useLocation } from 'react-router-dom'
+import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Users, CreditCard, FileText, BarChart3,
   Settings, LogOut, Baby, Bell, Search, ChevronDown, ScrollText,
-  Menu, X, Moon, Sun, ChevronRight
+  Menu, X, Moon, Sun, ChevronRight, DollarSign
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import CommandPalette from '../components/CommandPalette'
 
 const navSections = [
   {
@@ -13,6 +14,7 @@ const navSections = [
     items: [
       { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
       { to: '/insights', icon: BarChart3, label: 'Insights' },
+      { to: '/revenue', icon: DollarSign, label: 'Revenue' },
     ]
   },
   {
@@ -28,6 +30,7 @@ const navSections = [
     label: 'Content & Config',
     items: [
       { to: '/content', icon: FileText, label: 'Content' },
+      { to: '/notifications', icon: Bell, label: 'Notifications' },
       { to: '/settings', icon: Settings, label: 'Settings' },
     ]
   },
@@ -44,6 +47,19 @@ export default function AdminLayout() {
     return localStorage.getItem('babyglow-dark') === 'true'
   })
   const [profileOpen, setProfileOpen] = useState(false)
+  const [paletteOpen, setPaletteOpen] = useState(false)
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    const handler = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setPaletteOpen((v) => !v)
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode)
@@ -177,15 +193,14 @@ export default function AdminLayout() {
             >
               <Menu size={20} className="text-text-primary" />
             </button>
-            <div className="relative hidden md:block">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" />
-              <input
-                type="text"
-                placeholder="Search users, logs, reports..."
-                className="pl-9 pr-4 py-2 bg-cream rounded-xl text-sm border-0 outline-none focus:ring-2 focus:ring-coral/20 w-56 lg:w-72 transition-all placeholder:text-text-secondary/50"
-              />
-              <kbd className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-text-secondary bg-surface px-1.5 py-0.5 rounded border border-border font-mono hidden lg:block">⌘K</kbd>
-            </div>
+            <button
+              onClick={() => setPaletteOpen(true)}
+              className="relative hidden md:flex items-center gap-2 pl-3 pr-4 py-2 bg-cream rounded-xl text-sm w-56 lg:w-72 text-text-secondary/50 hover:ring-2 hover:ring-coral/20 transition-all text-left"
+            >
+              <Search size={16} className="text-text-secondary" />
+              <span className="flex-1">Search users, babies...</span>
+              <kbd className="text-[10px] text-text-secondary bg-surface px-1.5 py-0.5 rounded border border-border font-mono hidden lg:block">⌘K</kbd>
+            </button>
           </div>
           <div className="flex items-center gap-1 md:gap-2">
             <button
@@ -199,9 +214,12 @@ export default function AdminLayout() {
                 <Moon size={18} className="text-text-secondary" />
               )}
             </button>
-            <button className="relative p-2.5 rounded-xl hover:bg-cream transition-all duration-200 hover:scale-105">
+            <button
+              onClick={() => navigate('/notifications')}
+              className="relative p-2.5 rounded-xl hover:bg-cream transition-all duration-200 hover:scale-105"
+              title="Notifications"
+            >
               <Bell size={18} className="text-text-secondary" />
-              <span className="absolute top-2 right-2 w-2 h-2 bg-coral rounded-full" />
             </button>
             <div className="h-6 w-px bg-border hidden md:block mx-1" />
             <div className="relative">
@@ -247,6 +265,8 @@ export default function AdminLayout() {
           </div>
         </main>
       </div>
+
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
     </div>
   )
 }

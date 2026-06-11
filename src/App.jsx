@@ -15,6 +15,8 @@ const Subscriptions = lazy(() => import('./pages/Subscriptions'))
 const Content = lazy(() => import('./pages/Content'))
 const Insights = lazy(() => import('./pages/Insights'))
 const Settings = lazy(() => import('./pages/Settings'))
+const Revenue = lazy(() => import('./pages/Revenue'))
+const Notifications = lazy(() => import('./pages/Notifications'))
 
 function AuthGuard({ children }) {
   const { user, loading } = useAuth()
@@ -37,6 +39,8 @@ function AppRoutes() {
         <Route path="subscriptions" element={<Suspense fallback={<LoadingSpinner />}><Subscriptions /></Suspense>} />
         <Route path="content" element={<Suspense fallback={<LoadingSpinner />}><Content /></Suspense>} />
         <Route path="insights" element={<Suspense fallback={<LoadingSpinner />}><Insights /></Suspense>} />
+        <Route path="revenue" element={<Suspense fallback={<LoadingSpinner />}><Revenue /></Suspense>} />
+        <Route path="notifications" element={<Suspense fallback={<LoadingSpinner />}><Notifications /></Suspense>} />
         <Route path="settings" element={<Suspense fallback={<LoadingSpinner />}><Settings /></Suspense>} />
       </Route>
     </Routes>
