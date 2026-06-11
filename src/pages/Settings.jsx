@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { Settings as SettingsIcon, Bell, Globe, Shield, Database, Mail, Save, Eye } from 'lucide-react'
+import { Settings as SettingsIcon, Bell, Globe, Shield, Database, Mail, Save, Eye, Users } from 'lucide-react'
 import { getSettings, updateSettings } from '../api/settings'
+import { getAdmins } from '../api/admins'
 import LoadingSpinner from '../components/LoadingSpinner'
 import { useToast } from '../components/Toast'
 
@@ -20,6 +21,7 @@ export default function Settings() {
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [admins, setAdmins] = useState([])
 
   useEffect(() => {
     let cancelled = false
@@ -34,7 +36,16 @@ export default function Settings() {
       }
       if (!cancelled) setLoading(false)
     }
+    const loadAdmins = async () => {
+      try {
+        const res = await getAdmins()
+        if (!cancelled) setAdmins(res.data?.admins || [])
+      } catch {
+        // Section simply stays empty
+      }
+    }
     loadSettings()
+    loadAdmins()
     return () => { cancelled = true }
   }, [])
 
@@ -204,6 +215,35 @@ export default function Settings() {
             onChange={(v) => updateSetting('maintenance_mode', v)}
           />
         </div>
+      </div>
+
+      {/* Administrators */}
+      <div className="bg-surface rounded-2xl border border-border overflow-hidden animate-fade-in-up">
+        <div className="px-6 py-4 border-b border-border bg-cream/30">
+          <div className="flex items-center gap-2">
+            <Users size={16} className="text-sky" />
+            <h3 className="font-semibold">Administrators</h3>
+            <span className="ml-auto text-xs text-text-secondary">{admins.length} admin{admins.length === 1 ? '' : 's'}</span>
+          </div>
+        </div>
+        {admins.length === 0 ? (
+          <div className="px-6 py-5 text-sm text-text-secondary">No administrators found</div>
+        ) : (
+          <div className="divide-y divide-border">
+            {admins.map((a) => (
+              <div key={a.id} className="flex items-center gap-3 px-6 py-4">
+                <div className="w-9 h-9 bg-gradient-to-br from-coral to-coral-dark rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0">
+                  {a.name?.charAt(0)?.toUpperCase() || 'A'}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium truncate">{a.name}</div>
+                  <div className="text-xs text-text-secondary truncate">{a.email}</div>
+                </div>
+                <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-coral/10 text-coral uppercase tracking-wider">{a.role}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )
