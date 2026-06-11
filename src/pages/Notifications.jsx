@@ -7,6 +7,9 @@ import LoadingSpinner from '../components/LoadingSpinner'
 import ConfirmDialog from '../components/ConfirmDialog'
 import { useToast } from '../components/Toast'
 
+const audienceLabel = (plan) =>
+  ({ free: 'Free plan users', plus: 'Plus subscribers', family: 'Family subscribers' })[plan] || plan
+
 export default function Notifications() {
   const [notifications, setNotifications] = useState([])
   const [loading, setLoading] = useState(true)
@@ -14,6 +17,7 @@ export default function Notifications() {
   const [page, setPage] = useState(1)
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
+  const [targetPlan, setTargetPlan] = useState('')
   const [sending, setSending] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const toast = useToast()
@@ -38,10 +42,19 @@ export default function Notifications() {
     setConfirmOpen(false)
     setSending(true)
     try {
-      await createNotification({ title: title.trim(), body: body.trim() })
-      toast({ type: 'success', title: 'Notification sent', message: 'Delivered to all users' })
+      await createNotification({
+        title: title.trim(),
+        body: body.trim(),
+        ...(targetPlan ? { target_plan: targetPlan } : {}),
+      })
+      toast({
+        type: 'success',
+        title: 'Notification sent',
+        message: targetPlan ? `Delivered to ${audienceLabel(targetPlan)}` : 'Delivered to all users',
+      })
       setTitle('')
       setBody('')
+      setTargetPlan('')
       setPage(1)
       fetchNotifications()
     } catch (err) {
@@ -72,8 +85,8 @@ export default function Notifications() {
             <Megaphone size={18} className="text-white" />
           </div>
           <div>
-            <h2 className="font-semibold">Broadcast to all users</h2>
-            <p className="text-xs text-text-secondary">Push notification delivered to every registered device</p>
+            <h2 className="font-semibold">Broadcast a notification</h2>
+            <p className="text-xs text-text-secondary">Push notification delivered to the selected audience's devices</p>
           </div>
         </div>
         <div className="space-y-3">
@@ -92,14 +105,24 @@ export default function Notifications() {
             placeholder="Message body..."
             className="w-full px-4 py-2.5 bg-cream rounded-xl text-sm border-0 outline-none focus:ring-2 focus:ring-coral/20 resize-none"
           />
-          <div className="flex justify-end">
+          <div className="flex items-center justify-between gap-3">
+            <select
+              value={targetPlan}
+              onChange={(e) => setTargetPlan(e.target.value)}
+              className="px-4 py-2.5 bg-cream rounded-xl text-sm border-0 outline-none focus:ring-2 focus:ring-coral/20"
+            >
+              <option value="">All users</option>
+              <option value="free">Free plan only</option>
+              <option value="plus">Plus subscribers</option>
+              <option value="family">Family subscribers</option>
+            </select>
             <button
               onClick={() => setConfirmOpen(true)}
               disabled={!canSend}
               className="flex items-center gap-2 px-5 py-2.5 bg-coral hover:bg-coral-dark disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl transition-colors"
             >
               <Send size={15} />
-              {sending ? 'Sending...' : 'Send to everyone'}
+              {sending ? 'Sending...' : targetPlan ? `Send to ${audienceLabel(targetPlan)}` : 'Send to everyone'}
             </button>
           </div>
         </div>
@@ -116,7 +139,14 @@ export default function Notifications() {
                 <div key={n.id} className="px-6 py-4 table-row-hover">
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
-                      <div className="font-medium text-sm">{n.title}</div>
+                      <div className="flex items-center gap-2">
+                        <div className="font-medium text-sm">{n.title}</div>
+                        {n.target_plan && (
+                          <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-coral/10 text-coral">
+                            {audienceLabel(n.target_plan)}
+                          </span>
+                        )}
+                      </div>
                       <div className="text-sm text-text-secondary mt-0.5 line-clamp-2">{n.body}</div>
                     </div>
                     <div className="text-right shrink-0">
@@ -138,8 +168,8 @@ export default function Notifications() {
 
       <ConfirmDialog
         open={confirmOpen}
-        title="Send to all users?"
-        message={<>This will push <strong>"{title}"</strong> to every registered user. This can't be undone.</>}
+        title={targetPlan ? `Send to ${audienceLabel(targetPlan)}?` : 'Send to all users?'}
+        message={<>This will push <strong>"{title}"</strong> to {targetPlan ? audienceLabel(targetPlan) : 'every registered user'}. This can't be undone.</>}
         confirmLabel="Send broadcast"
         onConfirm={handleSend}
         onCancel={() => setConfirmOpen(false)}

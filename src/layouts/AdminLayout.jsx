@@ -3,7 +3,7 @@ import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Users, CreditCard, FileText, BarChart3,
   Settings, LogOut, Baby, Bell, Search, ChevronDown, ScrollText,
-  Menu, X, Moon, Sun, ChevronRight, DollarSign
+  Menu, X, Moon, Sun, ChevronRight, DollarSign, ShieldCheck
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import CommandPalette from '../components/CommandPalette'
@@ -24,6 +24,7 @@ const navSections = [
       { to: '/babies', icon: Baby, label: 'Babies' },
       { to: '/logs', icon: ScrollText, label: 'Logs' },
       { to: '/subscriptions', icon: CreditCard, label: 'Subscriptions' },
+      { to: '/audit-log', icon: ShieldCheck, label: 'Audit Log' },
     ]
   },
   {
