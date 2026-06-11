@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Search, ScrollText, RefreshCw, X, Trash2 } from 'lucide-react'
+import { Search, ScrollText, RefreshCw, X, Trash2, Download } from 'lucide-react'
 import { getLogs, getLog, deleteLog } from '../api/logs'
+import { exportLogsCsv } from '../api/exports'
 import Pagination from '../components/Pagination'
 import EmptyState from '../components/EmptyState'
 import LoadingSpinner from '../components/LoadingSpinner'
@@ -110,9 +111,24 @@ export default function Logs() {
           <h1 className="text-2xl font-bold">Activity Logs</h1>
           <p className="text-text-secondary text-sm mt-1">{meta.total.toLocaleString()} total log entries</p>
         </div>
-        <button onClick={fetchLogs} className="p-2.5 rounded-xl hover:bg-cream transition-colors" title="Refresh">
-          <RefreshCw size={16} className="text-text-secondary" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={async () => {
+              try {
+                await exportLogsCsv(typeFilter ? { type: typeFilter } : {})
+              } catch {
+                toast({ type: 'error', title: 'Export failed' })
+              }
+            }}
+            className="flex items-center gap-2 px-4 py-2.5 bg-surface border border-border hover:bg-cream text-sm font-medium rounded-xl transition-colors"
+          >
+            <Download size={15} className="text-text-secondary" />
+            Export CSV
+          </button>
+          <button onClick={fetchLogs} className="p-2.5 rounded-xl hover:bg-cream transition-colors" title="Refresh">
+            <RefreshCw size={16} className="text-text-secondary" />
+          </button>
+        </div>
       </div>
 
       <div className="flex gap-3 flex-wrap">

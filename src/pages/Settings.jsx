@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react'
-import { Settings as SettingsIcon, Bell, Globe, Shield, Database, Mail, Save, Eye, Users } from 'lucide-react'
+import { Settings as SettingsIcon, Bell, Globe, Shield, Database, Mail, Save, Eye, Users, UserPlus, UserMinus } from 'lucide-react'
 import { getSettings, updateSettings } from '../api/settings'
-import { getAdmins } from '../api/admins'
+import { getAdmins, createAdmin, removeAdmin } from '../api/admins'
+import { useAuth } from '../contexts/AuthContext'
+import ConfirmDialog from '../components/ConfirmDialog'
 import LoadingSpinner from '../components/LoadingSpinner'
 import { useToast } from '../components/Toast'
 
 export default function Settings() {
   const toast = useToast()
+  const { user: currentUser } = useAuth()
   const [settings, setSettings] = useState({
     app_name: 'BabyGlow',
     support_email: 'support@babyglow.app',
@@ -22,6 +25,9 @@ export default function Settings() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [admins, setAdmins] = useState([])
+  const [newAdmin, setNewAdmin] = useState({ name: '', email: '', password: '' })
+  const [addingAdmin, setAddingAdmin] = useState(false)
+  const [removeTarget, setRemoveTarget] = useState(null)
 
   useEffect(() => {
     let cancelled = false
@@ -65,6 +71,33 @@ export default function Settings() {
   const updateSetting = (key, value) => {
     setSettings((prev) => ({ ...prev, [key]: value }))
   }
+
+  const handleAddAdmin = async () => {
+    setAddingAdmin(true)
+    try {
+      const res = await createAdmin(newAdmin)
+      setAdmins((prev) => [...prev, res.data.admin])
+      setNewAdmin({ name: '', email: '', password: '' })
+      toast({ type: 'success', title: 'Admin added', message: res.data.admin.email })
+    } catch (err) {
+      toast({ type: 'error', title: 'Failed to add admin', message: err.response?.data?.message })
+    }
+    setAddingAdmin(false)
+  }
+
+  const handleRemoveAdmin = async () => {
+    const target = removeTarget
+    setRemoveTarget(null)
+    try {
+      await removeAdmin(target.id)
+      setAdmins((prev) => prev.filter((a) => a.id !== target.id))
+      toast({ type: 'success', title: 'Admin access removed', message: target.email })
+    } catch (err) {
+      toast({ type: 'error', title: 'Failed to remove admin', message: err.response?.data?.message })
+    }
+  }
+
+  const canAddAdmin = newAdmin.name.trim() && newAdmin.email.trim() && newAdmin.password.length >= 8 && !addingAdmin
 
   return (
     <div className="space-y-6 max-w-4xl">
@@ -240,11 +273,64 @@ export default function Settings() {
                   <div className="text-xs text-text-secondary truncate">{a.email}</div>
                 </div>
                 <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-coral/10 text-coral uppercase tracking-wider">{a.role}</span>
+                {a.id !== currentUser?.id && admins.length > 1 && (
+                  <button
+                    onClick={() => setRemoveTarget(a)}
+                    className="p-2 rounded-lg hover:bg-cream text-text-secondary hover:text-coral transition-colors"
+                    title="Remove admin access"
+                  >
+                    <UserMinus size={15} />
+                  </button>
+                )}
               </div>
             ))}
           </div>
         )}
+
+        {/* Add admin */}
+        <div className="px-6 py-4 border-t border-border bg-cream/20">
+          <div className="grid gap-2 sm:grid-cols-[1fr_1.3fr_1fr_auto]">
+            <input
+              type="text"
+              value={newAdmin.name}
+              onChange={(e) => setNewAdmin((p) => ({ ...p, name: e.target.value }))}
+              placeholder="Name"
+              className="px-3 py-2 bg-surface border border-border rounded-xl text-sm outline-none focus:ring-2 focus:ring-coral/20"
+            />
+            <input
+              type="email"
+              value={newAdmin.email}
+              onChange={(e) => setNewAdmin((p) => ({ ...p, email: e.target.value }))}
+              placeholder="Email"
+              className="px-3 py-2 bg-surface border border-border rounded-xl text-sm outline-none focus:ring-2 focus:ring-coral/20"
+            />
+            <input
+              type="password"
+              value={newAdmin.password}
+              onChange={(e) => setNewAdmin((p) => ({ ...p, password: e.target.value }))}
+              placeholder="Password (min 8)"
+              className="px-3 py-2 bg-surface border border-border rounded-xl text-sm outline-none focus:ring-2 focus:ring-coral/20"
+            />
+            <button
+              onClick={handleAddAdmin}
+              disabled={!canAddAdmin}
+              className="flex items-center justify-center gap-1.5 px-4 py-2 bg-coral hover:bg-coral-dark disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl transition-colors"
+            >
+              <UserPlus size={14} />
+              {addingAdmin ? 'Adding…' : 'Add admin'}
+            </button>
+          </div>
+        </div>
       </div>
+
+      <ConfirmDialog
+        open={removeTarget !== null}
+        title="Remove admin access?"
+        message={<>This will demote <strong>{removeTarget?.name}</strong> to a regular account and sign them out everywhere.</>}
+        confirmLabel="Remove access"
+        onConfirm={handleRemoveAdmin}
+        onCancel={() => setRemoveTarget(null)}
+      />
     </div>
   )
 }

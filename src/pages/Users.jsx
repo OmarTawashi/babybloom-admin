@@ -1,7 +1,8 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, Mail, Ban, Eye, Trash2, Crown, Users as UsersIcon } from 'lucide-react'
+import { Search, Mail, Ban, Eye, Trash2, Crown, Users as UsersIcon, Download } from 'lucide-react'
 import { getUsers, banUser, deleteUser, grantPremium } from '../api/users'
+import { exportUsersCsv } from '../api/exports'
 import ConfirmDialog from '../components/ConfirmDialog'
 import Pagination from '../components/Pagination'
 import EmptyState from '../components/EmptyState'
@@ -127,6 +128,19 @@ export default function Users() {
           <h1 className="text-2xl font-bold">Users</h1>
           <p className="text-text-secondary text-sm mt-1">{meta.total.toLocaleString()} total users</p>
         </div>
+        <button
+          onClick={async () => {
+            try {
+              await exportUsersCsv()
+            } catch {
+              toast({ type: 'error', title: 'Export failed' })
+            }
+          }}
+          className="flex items-center gap-2 px-4 py-2.5 bg-surface border border-border hover:bg-cream text-sm font-medium rounded-xl transition-colors"
+        >
+          <Download size={15} className="text-text-secondary" />
+          Export CSV
+        </button>
       </div>
 
       {/* Filters */}
